@@ -141,7 +141,7 @@ async def check_accounts():
         previous_friends = set(previous_data[steam_id].get('friends', []))
         current_friends = set(friend_ids)
         
-        # Check for new friends
+        # Check for new friends only
         new_friends = current_friends - previous_friends
         if new_friends:
             for friend_id in new_friends:
@@ -150,13 +150,10 @@ async def check_accounts():
                 await send_telegram_message(msg)
                 logger.info(f"New friend detected: {friend_id} added to {steam_id}")
         
-        # Check for removed friends
+        # Log removed friends (no telegram notification)
         removed_friends = previous_friends - current_friends
         if removed_friends:
             for friend_id in removed_friends:
-                friend_profile_link = get_profile_link(friend_id)
-                msg = f"Removed friend: {friend_profile_link}"
-                await send_telegram_message(msg)
                 logger.info(f"Friend removed: {friend_id} removed from {steam_id}")
 
     # Save current data
