@@ -119,6 +119,7 @@ async def check_accounts():
     first_run = is_first_run()
     previous_data = load_previous_data()
     current_data = {}
+    all_new_friends = []  # Collect all new friends for batched notification
     
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_friend_list(session, steam_id) for steam_id in STEAM_ACCOUNTS]
@@ -146,8 +147,7 @@ async def check_accounts():
         if new_friends:
             for friend_id in new_friends:
                 friend_profile_link = get_profile_link(friend_id)
-                msg = f"New friend: {friend_profile_link}"
-                await send_telegram_message(msg)
+                all_new_friends.append(friend_profile_link)
                 logger.info(f"New friend detected: {friend_id} added to {steam_id}")
         
         # Log removed friends (no telegram notification)
@@ -155,6 +155,16 @@ async def check_accounts():
         if removed_friends:
             for friend_id in removed_friends:
                 logger.info(f"Friend removed: {friend_id} removed from {steam_id}")
+
+    # Send batched notification for all new friends
+    if all_new_friends and not first_run:
+        if len(all_new_friends) == 1:
+            msg = f"New friend: {all_new_friends[0]}"
+        else:
+            msg = f"New friends detected ({len(all_new_friends)}):\n\n"
+            msg += "\n".join([f"• {friend_link}" for friend_link in all_new_friends])
+        await send_telegram_message(msg)
+        logger.info(f"Sent batched notification for {len(all_new_friends)} new friends")
 
     # Save current data
     save_data(current_data)
