@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   workflow_dispatch:
   schedule:
-    - cron: '*/15 * * * *'  # Run every hour
+    - cron: '0 * * * *'  # Run every hour
 jobs:
   monitor:
     permissions: write-all
