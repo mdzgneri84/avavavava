@@ -236,26 +236,17 @@ async def check_accounts():
     save_data(current_data)
 
     if first_run:
-        # Send initial setup message
+        # Log initial setup (no telegram messages)
         total_accounts = len(current_data)
         private_accounts = len(STEAM_ACCOUNTS) - total_accounts
         total_friends = sum(data['count'] for data in current_data.values())
         
-        msg = f"📊 <b>Steam Friend ID Monitor Setup Complete</b>\n\n"
-        msg += f"✅ Monitoring {total_accounts} accounts\n"
-        msg += f"👥 Total friends being tracked: {total_friends}\n"
+        logger.info(f"Steam Friend ID Monitor Setup Complete")
+        logger.info(f"Monitoring {total_accounts} accounts")
+        logger.info(f"Total friends being tracked: {total_friends}")
         if private_accounts > 0:
-            msg += f"🔒 {private_accounts} accounts are private\n"
-        msg += f"\n<i>Bot will now notify when specific friends are added/removed with their Steam IDs.</i>"
-        
-        await send_telegram_message(msg)
-        
-        # Send summary for each account
-        for steam_id, data in current_data.items():
-            summary_msg = f"📋 <b>Account Summary</b>\n\n"
-            summary_msg += f"Account: {data['profile_link']}\n"
-            summary_msg += f"Friends: {data['count']}\n"
-            await send_telegram_message(summary_msg)
+            logger.info(f"{private_accounts} accounts are private")
+        logger.info("Bot will now notify when specific friends are added with their Steam IDs")
     else:
         logger.info("Friend check completed")
 
