@@ -12,7 +12,7 @@ STEAM_API_KEY = os.environ.get('STEAM_API_KEY', '')
 
 # Steam account IDs to monitor (just the IDs, no names needed)
 STEAM_ACCOUNTS = [
-  '76561199849656455',
+    '76561199849656455',
 ]
 
 DATA_FILE = 'friend_data.json'
@@ -146,10 +146,7 @@ async def check_accounts():
         if new_friends:
             for friend_id in new_friends:
                 friend_profile_link = get_profile_link(friend_id)
-                msg = f"🎮 <b>New Friend Alert!</b>\n\n"
-                msg += f"Account: {profile_link}\n"
-                msg += f"New friend: {friend_profile_link}\n"
-                msg += f"Friends count: {len(previous_friends)} → {len(current_friends)}"
+                msg = f"New friend: {friend_profile_link}"
                 await send_telegram_message(msg)
                 logger.info(f"New friend detected: {friend_id} added to {steam_id}")
         
@@ -158,10 +155,7 @@ async def check_accounts():
         if removed_friends:
             for friend_id in removed_friends:
                 friend_profile_link = get_profile_link(friend_id)
-                msg = f"❌ <b>Friend Removed</b>\n\n"
-                msg += f"Account: {profile_link}\n"
-                msg += f"Removed friend: {friend_profile_link}\n"
-                msg += f"Friends count: {len(previous_friends)} → {len(current_friends)}"
+                msg = f"Removed friend: {friend_profile_link}"
                 await send_telegram_message(msg)
                 logger.info(f"Friend removed: {friend_id} removed from {steam_id}")
 
