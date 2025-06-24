@@ -223,14 +223,23 @@ async def check_accounts():
                 logger.info(f"Friend removed: {friend_id} removed from {steam_id}")
 
     # Send batched notification for all new friends
+    logger.info(f"Total new friends collected: {len(all_new_friends)}")
+    logger.info(f"First run status: {first_run}")
+    
     if all_new_friends and not first_run:
         if len(all_new_friends) == 1:
             msg = f"New friend: {all_new_friends[0]}"
         else:
             msg = f"New friends detected ({len(all_new_friends)}):\n\n"
             msg += "\n".join([f"• {friend_link}" for friend_link in all_new_friends])
+        
+        logger.info(f"Attempting to send Telegram message: {msg[:100]}...")
         await send_telegram_message(msg)
         logger.info(f"Sent batched notification for {len(all_new_friends)} new friends")
+    elif all_new_friends and first_run:
+        logger.info(f"New friends detected on first run (not sending notification): {len(all_new_friends)}")
+    else:
+        logger.info("No new friends detected in this cycle")
 
     # Save current data
     save_data(current_data)
