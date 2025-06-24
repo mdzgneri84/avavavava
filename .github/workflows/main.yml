@@ -1,0 +1,69 @@
+name: steam-friend-id-monitor
+run-name: Steam Friend ID Monitor Bot
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'  # Run every hour
+jobs:
+  monitor:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install aiohttp
+      - name: Restore previous data
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            friend_data.json
+            .initialized
+          key: steam-friend-id-data-dummy
+          restore-keys: |
+            steam-friend-id-data-
+      - name: Run bot
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          STEAM_API_KEY: ${{ secrets.STEAM_API_KEY }}
+        run: |
+          python bot.py
+      - name: Save new data
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            friend_data.json
+            .initialized
+          key: steam-friend-id-data-${{ github.run_number }}-${{ github.run_attempt }}
+      - name: Cleanup old caches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Listing all caches..."
+          gh api repos/${{ github.repository }}/actions/caches --paginate | jq -r '.actions_caches[] | select(.key | startswith("steam-friend-id-data-")) | "\(.id) \(.key)"' > cache_list.txt
+          
+          echo "Current cache key: steam-friend-id-data-${{ github.run_number }}-${{ github.run_attempt }}"
+          
+          while read -r cache_id cache_key; do
+            if [ "$cache_key" != "steam-friend-id-data-${{ github.run_number }}-${{ github.run_attempt }}" ]; then
+              echo "Deleting old cache: $cache_key (ID: $cache_id)"
+              gh api --method DELETE repos/${{ github.repository }}/actions/caches/$cache_id || echo "Failed to delete cache $cache_id"
+            else
+              echo "Keeping current cache: $cache_key"
+            fi
+          done < cache_list.txt
+      - name: Debug file state
+        run: |
+          echo "Contents of current directory:"
+          ls -la
+          echo "Contents of friend_data.json (if exists):"
+          cat friend_data.json || echo "File does not exist"
