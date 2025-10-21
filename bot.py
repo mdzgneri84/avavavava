@@ -7,7 +7,10 @@ from datetime import datetime
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
+TELEGRAM_CHAT_IDS = [
+    os.environ.get('TELEGRAM_CHAT_ID_1', ''),
+    os.environ.get('TELEGRAM_CHAT_ID_2', '')
+]
 STEAM_API_KEY = os.environ.get('STEAM_API_KEY', '')
 
 # Steam account IDs to monitor (just the IDs, no names needed)
@@ -101,6 +104,36 @@ STEAM_ACCOUNTS = [
 '76561199385958173','76561199385978867','76561199385983467','76561199385994677','76561199385995406','76561199386060183',
 '76561199386063977','76561199386081236','76561199386091789','76561199386119076','76561199386124653','76561199386247769',
 '76561199386317176','76561199386346628','76561198991139577','76561198991173755','76561198991183014',
+
+'76561197996375238', '76561198000853886', '76561197998739383',
+'76561198001021137', '76561198002804216', '76561198001005036', '76561198007290630', '76561198012799316',
+'76561197997350811', '76561197999939674', '76561198001834428', '76561198001127781', '76561197996370682',
+'76561198000378596', '76561198001672653', '76561197997423840', '76561197997355306', '76561198006974261',
+'76561197997193857', '76561198000264698', '76561198001069052', '76561198000445147',
+'76561198004626224', '76561198003872836', '76561198005062747', '76561198007796956',
+'76561197999919609', '76561198006406626', '76561197999011113', '76561197997032699', '76561198001318999',
+'76561197997101543', '76561197997176569', '76561197999018153', '76561198007592490', '76561197999404861',
+'76561198005062747', '76561198003872836', '76561198004626224', '76561197999018153',
+'76561197997032699', '76561197999011113', '76561198006406626', '76561197999919609', '76561197997101543',
+'76561198001318999', '76561197997176569', '76561197999892345', '76561197999371340', '76561198001594476',
+'76561198001607863', '76561198001031418', '76561198005733279',
+'76561197996205931', '76561198002441452', '76561197999778087', '76561197999004493',
+'76561197999053364', '76561198006620315', '76561197997820722', '76561198002795004', '76561197998109464',
+'76561197998832396', '76561197996380667', '76561197997404783', '76561198000988916', '76561198002064706',
+'76561198005733279', '76561198001607863', '76561198001031418',
+'76561197998935669', '76561198002434599', '76561197997920284',
+'76561197998524758', '76561198000704264', '76561197996378128', '76561198001603264', '76561197998050299',
+'76561197999905066', '76561197997778424', '76561198002410049', '76561198000779206', '76561198001047746',
+'76561197996272614', '76561197996766113', '76561198001093824',
+'76561197999429136', '76561197998959043', '76561197996674827', '76561197998960247',
+'76561197999566925', '76561197996480431', '76561198003110089', '76561197998195323',
+'76561198000474107', '76561198007129752', '76561197996270617', '76561198000873239',
+'76561197998011110', '76561197997551264', '76561197996516321', '76561198007460205',
+'76561198007129752', '76561198000873239', '76561197996516321', '76561197997661216',
+'76561198000265919', '76561198009546473', '76561198841093823', '76561198001628709',
+'76561197996572597', '76561198004195195', '76561197998152812', '76561198003020761', '76561198000010913',
+'76561197996286883', '76561197998160077', '76561198001387984', '76561197997597617',
+'76561198003420712', '76561198004848728', '76561197997590474', '76561197996683212',
 '76561198005737632','76561198006748816','76561198006942833','76561198009972733','76561198010625337','76561198011188437',
 '76561198011507370','76561198011764632','76561198012000667','76561198012181522','76561198014639808','76561199176065950',
 '76561199180284068','76561199182986556','76561199192557547','76561199277499283','76561199373389203','76561199487745240',
@@ -357,49 +390,51 @@ async def fetch_friend_list(session, steam_id):
         return steam_id, profile_link, None
 
 async def send_telegram_message(message):
-    """Send message to Telegram, splitting if too long"""
-    MAX_MESSAGE_LENGTH = 4000  # Leave some buffer under 4096 limit
+    """Send message to all Telegram chats, splitting if too long"""
+    MAX_MESSAGE_LENGTH = 4000
     
     if len(message) <= MAX_MESSAGE_LENGTH:
         await _send_single_message(message)
     else:
-        # Split message into chunks
         lines = message.split('\n')
         current_chunk = ""
         
         for line in lines:
-            # If adding this line would exceed limit, send current chunk
             if len(current_chunk + line + '\n') > MAX_MESSAGE_LENGTH:
                 if current_chunk:
                     await _send_single_message(current_chunk.strip())
                     current_chunk = line + '\n'
                 else:
-                    # Single line is too long, truncate it
                     await _send_single_message(line[:MAX_MESSAGE_LENGTH])
             else:
                 current_chunk += line + '\n'
         
-        # Send remaining chunk
         if current_chunk:
             await _send_single_message(current_chunk.strip())
 
 async def _send_single_message(message):
-    """Send a single message to Telegram"""
+    """Send a single message to all Telegram chats"""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'text': message,
-        'parse_mode': 'HTML'
-    }
+    
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(url, data=payload) as resp:
-                if resp.status != 200:
-                    logger.error(f"Failed to send message: {await resp.text()}")
-                else:
-                    logger.info("Telegram message sent successfully")
-        except Exception as e:
-            logger.error(f"Telegram error: {e}")
+        # Send to each chat ID
+        for chat_id in TELEGRAM_CHAT_IDS:
+            if not chat_id:  # Skip empty chat IDs
+                continue
+                
+            payload = {
+                'chat_id': chat_id,
+                'text': message,
+                'parse_mode': 'HTML'
+            }
+            try:
+                async with session.post(url, data=payload) as resp:
+                    if resp.status != 200:
+                        logger.error(f"Failed to send message to {chat_id}: {await resp.text()}")
+                    else:
+                        logger.info(f"Telegram message sent successfully to {chat_id}")
+            except Exception as e:
+                logger.error(f"Telegram error for {chat_id}: {e}")
 
 def load_previous_data():
     """Load previous friend data from file"""
