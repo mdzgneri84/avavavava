@@ -7,10 +7,7 @@ from datetime import datetime
 
 # Configuration
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
-TELEGRAM_CHAT_IDS = [
-    os.environ.get('TELEGRAM_CHAT_ID_1', ''),
-    os.environ.get('TELEGRAM_CHAT_ID_2', '')
-]
+TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 STEAM_API_KEY = os.environ.get('STEAM_API_KEY', '')
 
 # Steam account IDs to monitor (just the IDs, no names needed)
@@ -354,8 +351,6 @@ STEAM_ACCOUNTS = [
 
     
     
-]
-
 DATA_FILE = 'friend_data.json'
 INIT_FILE = '.initialized'
 
@@ -390,51 +385,49 @@ async def fetch_friend_list(session, steam_id):
         return steam_id, profile_link, None
 
 async def send_telegram_message(message):
-    """Send message to all Telegram chats, splitting if too long"""
-    MAX_MESSAGE_LENGTH = 4000
+    """Send message to Telegram, splitting if too long"""
+    MAX_MESSAGE_LENGTH = 4000  # Leave some buffer under 4096 limit
     
     if len(message) <= MAX_MESSAGE_LENGTH:
         await _send_single_message(message)
     else:
+        # Split message into chunks
         lines = message.split('\n')
         current_chunk = ""
         
         for line in lines:
+            # If adding this line would exceed limit, send current chunk
             if len(current_chunk + line + '\n') > MAX_MESSAGE_LENGTH:
                 if current_chunk:
                     await _send_single_message(current_chunk.strip())
                     current_chunk = line + '\n'
                 else:
+                    # Single line is too long, truncate it
                     await _send_single_message(line[:MAX_MESSAGE_LENGTH])
             else:
                 current_chunk += line + '\n'
         
+        # Send remaining chunk
         if current_chunk:
             await _send_single_message(current_chunk.strip())
 
 async def _send_single_message(message):
-    """Send a single message to all Telegram chats"""
+    """Send a single message to Telegram"""
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    
+    payload = {
+        'chat_id': TELEGRAM_CHAT_ID,
+        'text': message,
+        'parse_mode': 'HTML'
+    }
     async with aiohttp.ClientSession() as session:
-        # Send to each chat ID
-        for chat_id in TELEGRAM_CHAT_IDS:
-            if not chat_id:  # Skip empty chat IDs
-                continue
-                
-            payload = {
-                'chat_id': chat_id,
-                'text': message,
-                'parse_mode': 'HTML'
-            }
-            try:
-                async with session.post(url, data=payload) as resp:
-                    if resp.status != 200:
-                        logger.error(f"Failed to send message to {chat_id}: {await resp.text()}")
-                    else:
-                        logger.info(f"Telegram message sent successfully to {chat_id}")
-            except Exception as e:
-                logger.error(f"Telegram error for {chat_id}: {e}")
+        try:
+            async with session.post(url, data=payload) as resp:
+                if resp.status != 200:
+                    logger.error(f"Failed to send message: {await resp.text()}")
+                else:
+                    logger.info("Telegram message sent successfully")
+        except Exception as e:
+            logger.error(f"Telegram error: {e}")
 
 def load_previous_data():
     """Load previous friend data from file"""
