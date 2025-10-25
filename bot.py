@@ -524,12 +524,24 @@ async def check_accounts():
     first_run = is_first_run()
     previous_data = load_previous_data()
     current_data = {}
-    all_new_friends = []  # Collect all new friends for batched notification
+    all_new_friends = []
     
     async with aiohttp.ClientSession() as session:
-        tasks = [fetch_friend_list(session, steam_id) for steam_id in STEAM_ACCOUNTS]
-        results = await asyncio.gather(*tasks)
-
+        results = []
+        BATCH_SIZE = 500  # Process 100 accounts at a time
+        DELAY_BETWEEN_BATCHES = 5  # Wait 5 seconds between batches
+        
+        for i in range(0, len(STEAM_ACCOUNTS), BATCH_SIZE):
+            batch = STEAM_ACCOUNTS[i:i + BATCH_SIZE]
+            tasks = [fetch_friend_list(session, steam_id) for steam_id in batch]
+            batch_results = await asyncio.gather(*tasks)
+            results.extend(batch_results)
+            
+            # Don't delay after the last batch
+            if i + BATCH_SIZE < len(STEAM_ACCOUNTS):
+                logger.info(f"Processed {i + BATCH_SIZE}/{len(STEAM_ACCOUNTS)} accounts, waiting {DELAY_BETWEEN_BATCHES}s...")
+                await asyncio.sleep(DELAY_BETWEEN_BATCHES)
+    
     for steam_id, profile_link, friend_ids in results:
         if friend_ids is None:
             continue
